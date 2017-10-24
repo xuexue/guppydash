@@ -40,6 +40,7 @@
         <li class="list-group-item {{ job.colour_class() }}" style="padding:5px">
         <a href="#" data-toggle="tooltip" data-placement="top" title="{{ job.tooltip() }}">{{ job.user.name }}</a>
         <small style="font-size:0.7em">({{ job.time }})</small>
+        {% if job.int %}<span class="label label-danger" style="font-size:0.5em">pty bash</span>{% end %}
         </li>
         {% end %}
         {% for i in range(gpu.gpu_free()) %}
