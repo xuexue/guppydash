@@ -1,6 +1,6 @@
-from collections import namedtuple
-import tornado
+from subprocess import Popen, PIPE
 import tornado.template as T
+import datetime
 
 MAX_GPU_PERSON = 5
 
@@ -60,21 +60,30 @@ class User(object):
             return "Using %d GPUs (too many!)" % self.gpu_used()
         return "Using %d GPUs" % self.gpu_used()
 
-def read_gpu_avail(filename):
+
+def read_gpu_avail():
+    # fetch data
+    gpu_command = """ssh cluster58 'sinfo -o "%N %G %c %a %f" -h -N;' """
+    stream = Popen(gpu_command, shell=True, stdout=PIPE).stdout
+    # read
     gpus = {}
-    for line in open(filename):
+    for line in stream:
         name, gpu, cpu, status, type = line.strip().split(' ')
         gpus[name] = GPU(name,
                          type,
-                         ngpu=int(gpu.split(':')[1]),
+                         ngpu=(0 if gpu == "(null)" else int(gpu.split(':')[1])),
                          ncpu=int(cpu),
                          up=(status == 'up')) 
     return gpus
 
-def read_jobs(filename, gpus):
+def read_jobs(gpus):
+    # fetch data
+    squeue_command = """ssh cluster58 'squeue -o "%u %b %C %N %M %r" -h;' """
+    stream = Popen(squeue_command, shell=True, stdout=PIPE).stdout
+    # read
     users = {}
     jobs = []
-    for line in open(filename):
+    for line in stream:
         username, gpu, cpu, gpuname, time, _ = line.strip().split(' ')
         # sometimes the gpu list is incomplete, put in a placeholder for now
         if gpuname not in gpus:
@@ -101,11 +110,15 @@ def render(gpus, jobs, users):
     total_used = sum([gpu.gpu_used() for gpu in gpus if gpu.up])
     # render template
     template = T.Template(open('src/template.html').read())
-    output = template.generate(gpus=gpus, jobs=jobs, total_gpus=total_gpus, total_used=total_used,
-                               usage_rate=int(round(100 * total_used / total_gpus)))
+    output = template.generate(gpus=gpus,
+                               jobs=jobs,
+                               total_gpus=total_gpus,
+                               total_used=total_used,
+                               usage_rate=int(round(100 * total_used / total_gpus)),
+                               update_time=datetime.datetime.now())
     open('index.html', 'w').write(output)
 
 if __name__ == '__main__':
-    gpus = read_gpu_avail('dataeg/gpu_info_1') # from running Cluster Usage</h1>
-    jobs, users = read_jobs('dataeg/gpu_info_2', gpus)
+    gpus = read_gpu_avail() # from running Cluster Usage</h1>
+    jobs, users = read_jobs(gpus)
     render(gpus, jobs, users)
