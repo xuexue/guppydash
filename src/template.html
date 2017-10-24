@@ -21,7 +21,7 @@
 
 <div class="row">
 {% for gpu in gpus %}
-<div class="panel {% if gpu.up %}panel-info{% else %}panel-warning{% end %} col-xs-2"
+<div class="panel {% if gpu.up %}panel-info{% else %}panel-danger{% end %} col-xs-2"
         style="padding:0; margin:10px; height:16em;">
     <div class="panel-heading">
         <span>{{ gpu.name }}</span>
@@ -35,8 +35,8 @@
     <div class="panel-body" style="padding:5px 10px">
     <ul class="list-group">
         {% for job in gpu.gpu_jobs %}
-        <li class="list-group-item alert-info" style="padding:5px">
-        <span>{{ job.user }}</span>
+        <li class="list-group-item {%if job.user.is_overusing() %}alert-warning{%else%}alert-info{%end%}" style="padding:5px">
+        <a href="#" data-toggle="tooltip" data-placement="top" title="{{ job.user.tooltip() }}">{{ job.user.name }}</a>
         <small style="font-size:0.7em">({{ job.time }})</small>
         </li>
         {% end %}

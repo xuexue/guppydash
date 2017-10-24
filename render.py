@@ -2,6 +2,8 @@ from collections import namedtuple
 import tornado
 import tornado.template as T
 
+MAX_GPU_PERSON = 5
+
 class GPU(object):
     """Representation of a GPU"""
     def __init__(self, name, type='?', ngpu=0, ncpu=0, up=False):
@@ -41,7 +43,22 @@ class Job(object):
         self.time = time # string representation of time taken
     def __str__(self):
         return "Job by %s on %s using %d gpu %d cpu" % (
-                self.user, self.node.name, self.ngpu, self.ncpu)
+                self.user.name, self.node.name, self.ngpu, self.ncpu)
+
+class User(object):
+    def __init__(self, name):
+        self.name = name
+        self.jobs = []
+    def add_job(self, job):
+        self.jobs.append(job)
+    def gpu_used(self):
+        return sum([job.ngpu for job in self.jobs])
+    def is_overusing(self):
+        return self.gpu_used() > MAX_GPU_PERSON
+    def tooltip(self):
+        if self.is_overusing():
+            return "Using %d GPUs (too many!)" % self.gpu_used()
+        return "Using %d GPUs" % self.gpu_used()
 
 def read_gpu_avail(filename):
     gpus = {}
@@ -55,14 +72,17 @@ def read_gpu_avail(filename):
     return gpus
 
 def read_jobs(filename, gpus):
+    users = {}
     jobs = []
     for line in open(filename):
-        user, gpu, cpu, gpuname, time, _ = line.strip().split(' ')
+        username, gpu, cpu, gpuname, time, _ = line.strip().split(' ')
         # sometimes the gpu list is incomplete, put in a placeholder for now
         if gpuname not in gpus:
             gpus[gpuname] = GPU(gpuname, up=False)
+        if username not in users:
+            users[username] = User(username)
         # create job object
-        job = Job(user,
+        job = Job(users[username],
                   gpus[gpuname],
                   ngpu=(0 if gpu == "(null)" else int(gpu.split(':')[1])),
                   ncpu=int(cpu),
@@ -70,9 +90,10 @@ def read_jobs(filename, gpus):
         # append to jobs
         jobs.append(job)
         gpus[gpuname].add_job(job)
-    return jobs
+        users[username].add_job(job)
+    return jobs, users
 
-def render(gpus, jobs):
+def render(gpus, jobs, users):
     # put UP gpu's first, then sort by gpu number e.g. guppy9 before guppy12
     gpus = sorted(gpus.values(), key=lambda gpu: (not gpu.up, int(gpu.name[5:])))
     # usage stats
@@ -86,5 +107,5 @@ def render(gpus, jobs):
 
 if __name__ == '__main__':
     gpus = read_gpu_avail('dataeg/gpu_info_1') # from running Cluster Usage</h1>
-    jobs = read_jobs('dataeg/gpu_info_2', gpus)
-    render(gpus, jobs)
+    jobs, users = read_jobs('dataeg/gpu_info_2', gpus)
+    render(gpus, jobs, users)
