@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Guppy Dashboard</title>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="container">
+<div class="row">
+    <h1>Cluster Usage</h1>
+    <div class="progress">
+      <div class="progress-bar" role="progressbar" aria-valuenow="{{ total_used }}"
+           aria-valuemin="0" aria-valuemax="{{ total_gpus }} " style="width: {{ usage_rate }}%;">
+        {{ total_used }} / {{ total_gpus}} = {{ usage_rate }}% Usage
+      </div>
+    </div>
+</div>
+
+
+<div class="row">
+{% for gpu in gpus %}
+<div class="panel {% if gpu.up %}panel-info{% else %}panel-warning{% end %} col-xs-2"
+        style="padding:0; margin:10px; height:16em;">
+    <div class="panel-heading">
+        <span>{{ gpu.name }}</span>
+        <span class="label label-default">{{ gpu.type }}</span>
+        {% if gpu.is_full() %}
+            <span class="label label-danger">Full</span>
+        {% else %}
+            <span class="label label-success">{{ gpu.gpu_free() }} Free</span>
+        {% end %}
+    </div>
+    <div class="panel-body" style="padding:5px 10px">
+    <ul class="list-group">
+        {% for job in gpu.gpu_jobs %}
+        <li class="list-group-item alert-info" style="padding:5px">
+        <span>{{ job.user }}</span>
+        <small style="font-size:0.7em">({{ job.time }})</small>
+        </li>
+        {% end %}
+        {% for i in range(gpu.gpu_free()) %}
+        <li class="list-group-item alert-success" style="padding:5px"><span>Free</span></li>
+        {% end %}
+    </ul>
+    {% if len(gpu.cpu_jobs) != 0 %}
+    <span>+{{len(gpu.cpu_jobs)}} CPU job(s) </span>
+    {% end %}
+    </div>
+</div>
+{% end %}
+</div>
+</div>
+
+</body>
+</html>
