@@ -37,8 +37,8 @@
     <div class="panel-body" style="padding:5px 10px">
     <ul class="list-group">
         {% for job in gpu.gpu_jobs %}
-        <li class="list-group-item {%if job.user.is_overusing() %}alert-warning{%else%}alert-info{%end%}" style="padding:5px">
-        <a href="#" data-toggle="tooltip" data-placement="top" title="{{ job.user.tooltip() }}">{{ job.user.name }}</a>
+        <li class="list-group-item {{ job.colour_class() }}" style="padding:5px">
+        <a href="#" data-toggle="tooltip" data-placement="top" title="{{ job.tooltip() }}">{{ job.user.name }}</a>
         <small style="font-size:0.7em">({{ job.time }})</small>
         </li>
         {% end %}
