@@ -133,9 +133,14 @@ def read_jobs(gpus, interactive_jobs):
         if username not in users:
             users[username] = User(username)
         # create job object
+        ngpu = 0
+        try: 
+            ngpu = int(gpu.split(':')[1])
+        except:
+            pass
         job = Job(users[username],
                   gpus[gpuname],
-                  ngpu=(0 if gpu == "(null)" else int(gpu.split(':')[1])),
+                  ngpu=ngpu,
                   ncpu=int(cpu),
                   time=time,
                   int=(cmd == "bash") and (username, lstart) in interactive_jobs)
