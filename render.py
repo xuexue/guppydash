@@ -3,6 +3,7 @@ import tornado.template as T
 import datetime
 
 MAX_GPU_PERSON = 5
+HOSTNAME = "cluster58"
 
 class GPU(object):
     """Representation of a GPU"""
@@ -60,15 +61,15 @@ class User(object):
             return "Using %d GPUs (too many!)" % self.gpu_used()
         return "Using %d GPUs" % self.gpu_used()
 
+def query_cluster(cmd):
+    command = "ssh "+HOSTNAME+" '"+cmd+"'"
+    return Popen(command, shell=True, stdout=PIPE).stdout
 
 def read_gpu_avail():
-    # fetch data
-    gpu_command = """ssh cluster58 'sinfo -o "%N %G %c %a %f" -h -N;' """
-    stream = Popen(gpu_command, shell=True, stdout=PIPE).stdout
     # read
     gpus = {}
-    for line in stream:
-        name, gpu, cpu, status, type = line.strip().split(' ')
+    for line in query_cluster('sinfo -o "%N\t%G\t%c\t%a\t%f\t%E" -h -N;'):
+        name, gpu, cpu, status, type, msg = line.strip().split('\t')
         gpus[name] = GPU(name,
                          type,
                          ngpu=(0 if gpu == "(null)" else int(gpu.split(':')[1])),
@@ -77,14 +78,11 @@ def read_gpu_avail():
     return gpus
 
 def read_jobs(gpus):
-    # fetch data
-    squeue_command = """ssh cluster58 'squeue -o "%u %b %C %N %M %r" -h;' """
-    stream = Popen(squeue_command, shell=True, stdout=PIPE).stdout
     # read
     users = {}
     jobs = []
-    for line in stream:
-        username, gpu, cpu, gpuname, time, _ = line.strip().split(' ')
+    for line in query_cluster('squeue -o "%u\t%b\t%C\t%N\t%M\t%F\t%o" -h;'):
+        username, gpu, cpu, gpuname, time, jobid, cmd = line.strip().split('\t')
         # sometimes the gpu list is incomplete, put in a placeholder for now
         if gpuname not in gpus:
             gpus[gpuname] = GPU(gpuname, up=False)
