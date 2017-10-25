@@ -25,7 +25,7 @@
 
 <div class="row">
 {% for gpu in gpus %}
-<div class="panel {% if gpu.up %}panel-info{% else %}panel-danger{% end %} col-xs-2"
+<div class="panel {% if gpu.is_up() %}panel-info{% else %}panel-danger{% end %} col-xs-2"
         style="padding:0; margin:10px; height:16em;">
     <div class="panel-heading">
         <span>{{ gpu.name }}</span>

@@ -7,14 +7,17 @@ HOSTNAME = "cluster58"
 
 class GPU(object):
     """Representation of a GPU"""
-    def __init__(self, name, type='?', ngpu=0, ncpu=0, up=False):
+    def __init__(self, name, type='?', ngpu=0, ncpu=0, status=None, msg=None):
         self.name = name # name of gpu, e.g. 'guppy5'
         self.type = type # type of gpu, e.g. 'txp'
         self.ngpu = ngpu # number of gpu on machine
         self.ncpu = ncpu # number of cpu on machine
-        self.up = up # boolean, whether the node is up
+        self.status = status # string, status of node
+        self.msg = msg # why node is down
         self.gpu_jobs = []
         self.cpu_jobs = []
+    def is_up(self):
+        return self.status in ('comp', 'mix', 'idle')
     def add_job(self, job):
         if job.ngpu:
             # add it once per GPU used -- for plotting
@@ -96,13 +99,14 @@ def query_cluster(cmd):
 def read_gpu_avail():
     # read
     gpus = {}
-    for line in query_cluster('sinfo -o "%N\t%G\t%c\t%a\t%f\t%E" -h -N;'):
+    for line in query_cluster('sinfo -o "%N\t%G\t%c\t%t\t%f\t%E" -h -N;'):
         name, gpu, cpu, status, type, msg = line.strip().split('\t')
         gpus[name] = GPU(name,
                          type,
                          ngpu=(0 if gpu == "(null)" else int(gpu.split(':')[1])),
                          ncpu=int(cpu),
-                         up=(status == 'up')) 
+                         status=status,
+                         msg=msg)
     return gpus
 
 def read_pty_bash_jobs():
@@ -131,7 +135,7 @@ def read_jobs(gpus, interactive_jobs):
             gpuname = "WAITING"
         # sometimes the gpu list is incomplete, put in a placeholder for now
         if gpuname not in gpus:
-            gpus[gpuname] = GPU(gpuname, up=False)
+            gpus[gpuname] = GPU(gpuname)
         if username not in users:
             users[username] = User(username)
         # create job object
@@ -155,10 +159,10 @@ def read_jobs(gpus, interactive_jobs):
 def render(gpus, jobs, users):
     # put UP gpu's first, then sort by gpu number e.g. guppy9 before guppy12
     gpus = sorted(gpus.values(), key=lambda gpu:
-            (not gpu.up, int(gpu.name[5:] if gpu.name.startswith("guppy") else 0)))
+            (not gpu.is_up(), int(gpu.name[5:] if gpu.name.startswith("guppy") else 0)))
     # usage stats
-    total_gpus = sum([gpu.ngpu for gpu in gpus if gpu.up])
-    total_used = sum([gpu.gpu_used() for gpu in gpus if gpu.up])
+    total_gpus = sum([gpu.ngpu for gpu in gpus if gpu.is_up()])
+    total_used = sum([gpu.gpu_used() for gpu in gpus if gpu.is_up()])
     # render template
     template = T.Template(open('src/template.html').read())
     output = template.generate(gpus=gpus,
