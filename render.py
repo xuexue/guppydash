@@ -132,7 +132,7 @@ def read_jobs(gpus, interactive_jobs):
         # convert time
         lstart = datetime.datetime.strptime(lstart, "%Y-%m-%dT%H:%M:%S")
         if not gpuname:
-            gpuname = "WAITING"
+            continue
         # sometimes the gpu list is incomplete, put in a placeholder for now
         if gpuname not in gpus:
             gpus[gpuname] = GPU(gpuname)
