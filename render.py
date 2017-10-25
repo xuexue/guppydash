@@ -159,7 +159,7 @@ def read_jobs(gpus, interactive_jobs):
 def render(gpus, jobs, users):
     # put UP gpu's first, then sort by gpu number e.g. guppy9 before guppy12
     gpus = sorted(gpus.values(), key=lambda gpu:
-            (not gpu.is_up(), int(gpu.name[5:] if gpu.name.startswith("guppy") else 0)))
+            (not gpu.is_up(), -gpu.ngpu, int(gpu.name[5:] if gpu.name.startswith("guppy") else 0)))
     # usage stats
     total_gpus = sum([gpu.ngpu for gpu in gpus if gpu.is_up()])
     total_used = sum([gpu.gpu_used() for gpu in gpus if gpu.is_up()])
