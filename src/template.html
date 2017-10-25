@@ -30,13 +30,22 @@
     <div class="panel-heading">
         <span>{{ gpu.name }}</span>
         <span class="label label-default">{{ gpu.type }}</span>
-        {% if gpu.is_full() %}
-            <span class="label label-danger">Full</span>
+        {% if gpu.is_up() %}
+          {% if gpu.is_full() %}
+              <span class="label label-danger">Full</span>
+          {% else %}
+              <span class="label label-success">{{ gpu.gpu_free() }} Free</span>
+          {% end %}
         {% else %}
-            <span class="label label-success">{{ gpu.gpu_free() }} Free</span>
+        <span class="label label-danger">{{ gpu.status }}</span>
         {% end %}
     </div>
     <div class="panel-body" style="padding:5px 10px">
+
+    {% if not gpu.is_up() %}
+    <div class="alert alert-danger" style="padding:5px"><span>{{ gpu.msg }}</span></div>
+    {% end %}
+
     <ul class="list-group">
         {% for job in gpu.gpu_jobs %}
         <li class="list-group-item {{ job.colour_class() }}" style="padding:5px">
@@ -45,8 +54,10 @@
         {% if job.int %}<span class="label label-danger" style="font-size:0.5em">pty bash</span>{% end %}
         </li>
         {% end %}
-        {% for i in range(gpu.gpu_free()) %}
-        <li class="list-group-item alert-success" style="padding:5px"><span>Free</span></li>
+        {% if gpu.is_up() %}
+          {% for i in range(gpu.gpu_free()) %}
+          <li class="list-group-item alert-success" style="padding:5px"><span>Free</span></li>
+          {% end %}
         {% end %}
     </ul>
     {% if len(gpu.cpu_jobs) != 0 %}
