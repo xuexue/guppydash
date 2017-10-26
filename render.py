@@ -17,7 +17,7 @@ class GPU(object):
         self.gpu_jobs = []
         self.cpu_jobs = []
     def is_up(self):
-        return self.status in ('comp', 'mix', 'idle')
+        return self.status in ('mix', 'idle')
     def add_job(self, job):
         if job.ngpu:
             # add it once per GPU used -- for plotting

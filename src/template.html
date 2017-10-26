@@ -42,7 +42,7 @@
     </div>
     <div class="panel-body" style="padding:5px 10px">
 
-    {% if not gpu.is_up() %}
+    {% if not gpu.is_up() and str(gpu.msg).lower() != "none" %}
     <div class="alert alert-danger" style="padding:5px"><span>{{ gpu.msg }}</span></div>
     {% end %}
 
