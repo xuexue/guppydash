@@ -3,7 +3,7 @@ import tornado.template as T
 import datetime
 
 MAX_GPU_PERSON = 5
-HOSTNAME = "cluster58"
+HOSTNAMES = ["cluster57", "cluster58"]
 
 class GPU(object):
     """Representation of a GPU"""
@@ -93,20 +93,53 @@ class User(object):
         return "Using %d GPUs" % self.gpu_used()
 
 def query_cluster(cmd):
-    command = "ssh "+HOSTNAME+" '"+cmd+"'"
-    return Popen(command, shell=True, stdout=PIPE).stdout
+    for hostname in HOSTNAMES:
+        command = "ssh "+hostname+" '"+cmd+"'"
+        for line in Popen(command, shell=True, stdout=PIPE).stdout:
+            yield line
+
+def get_all_node_names(name):
+    """
+    Return a list of individual node names given a grouped name.
+
+    >>>get_all_node_names("cluster[0-3,5]")
+    ["cluster0", "cluster1", "cluster3", "cluster5"]
+    """
+    names = []
+    if '[' in name and ']' in name:
+        node_name = name[:name.find('[')]
+        ids = name[name.find('[')+1:name.find(']')]
+        id_ranges = ids.split(',')
+        for id_range in id_ranges:
+            if '-' in id_range:
+                start, end = id_range.split('-')
+                start = int(start)
+                end = int(end)
+                for i in range(start, end+1):
+                    names.append(node_name + str(i))
+            else:
+                names.append(node_name + id_range)
+    else:
+        names = [name]
+    return names
 
 def read_gpu_avail():
     # read
     gpus = {}
-    for line in query_cluster('sinfo -o "%N\t%G\t%c\t%t\t%f\t%E" -h -N;'):
+    for line in query_cluster('sinfo -o "%N\t%G\t%c\t%t\t%f\t%E" -h -e -N;'):
         name, gpu, cpu, status, type, msg = line.strip().split('\t')
-        gpus[name] = GPU(name,
-                         type,
-                         ngpu=(0 if gpu == "(null)" else int(gpu.split(':')[1])),
-                         ncpu=int(cpu),
-                         status=status,
-                         msg=msg)
+
+        ngpu = 0 if gpu == "(null)" else int(gpu.split(':')[1])
+        ncpu = int(cpu.replace('+', ''))
+
+        # despite using "-e", we might still need to iterate through names :(
+        for node_name in get_all_node_names(name):
+            gpus[node_name] = GPU(node_name,
+                                  type,
+                                  ngpu=ngpu,
+                                  ncpu=ncpu,
+                                  status=status,
+                                  msg=msg)
     return gpus
 
 def read_pty_bash_jobs():
@@ -127,7 +160,7 @@ def read_jobs(gpus, interactive_jobs):
     # read
     users = {}
     jobs = []
-    for line in query_cluster('squeue -o "%u\t%b\t%C\t%N\t%M\t%F\t%V\t%j" -h;'):
+    for line in query_cluster('squeue -o "%u\t%b\t%C\t%N\t%M\t%F\t%S\t%j" -h;'):
         username, gpu, cpu, gpuname, time, jobid, lstart, cmd = line.strip().split('\t')
         # convert time
         lstart = datetime.datetime.strptime(lstart, "%Y-%m-%dT%H:%M:%S")
@@ -158,8 +191,11 @@ def read_jobs(gpus, interactive_jobs):
 
 def render(gpus, jobs, users):
     # put UP gpu's first, then sort by gpu number e.g. guppy9 before guppy12
-    gpus = sorted(gpus.values(), key=lambda gpu:
-            (not gpu.is_up(), -gpu.ngpu, int(gpu.name[5:] if gpu.name.startswith("guppy") else 0)))
+    gpus = sorted([gpu for gpu in gpus.values() if gpu.ngpu > 0],
+        key=lambda gpu: (not gpu.is_up(),
+                         int(gpu.name[5:]
+                             if gpu.name.startswith("guppy")
+                             else 100)))
     # usage stats
     total_gpus = sum([gpu.ngpu for gpu in gpus if gpu.is_up()])
     total_used = sum([gpu.gpu_used() for gpu in gpus if gpu.is_up()])

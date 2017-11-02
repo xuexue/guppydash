@@ -26,7 +26,7 @@
 <div class="row">
 {% for gpu in gpus %}
 <div class="panel {% if gpu.is_up() %}panel-info{% else %}panel-danger{% end %} col-xs-2"
-        style="padding:0; margin:10px; height:16em;">
+  style="padding:0; margin:10px; height: {% if gpu.name == 'dgx1' %}26em{% else %}16em{% end %};">
     <div class="panel-heading">
         <span>{{ gpu.name }}</span>
         <span class="label label-default">{{ gpu.type }}</span>
